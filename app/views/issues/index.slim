@@ -1,0 +1,18 @@
+table
+  th
+    td Label
+    td Count
+    td Issues
+
+  - @issues.sort_by{|_, issues| -issues.size}.each do |label, issues|
+    tr
+      td= label
+      td= issues.size
+      td
+        ul
+          - issues.sort_by{|issue| issue['title']}.each do |issue|
+            li
+              = link_to issue['title'], issue['url']
+              span style='color:#CCC;font-size:10px;margin-left:10px;' data-date=issue['createdAt']
+
+

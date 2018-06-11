@@ -1,0 +1,9 @@
+---
+:orm: none
+:test: rspec
+:mock: none
+:script: jquery
+:renderer: slim
+:stylesheet: scss
+:namespace: GithubIssues
+:migration_format: number
