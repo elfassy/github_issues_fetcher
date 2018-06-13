@@ -31,7 +31,7 @@ class FetchIssues
   private
 
   def cache_fetch
-    key = "FetchIssues:#{@repo}:#{@options.values.flatten.compact.join(':')}:v6"
+    key = "FetchIssues:#{@repo}:#{@options.values.flatten.compact.join(':')}:v1"
     return Padrino.cache.load(key) if Padrino.cache.key?(key)
     Padrino.cache.store(key, yield, expires: 3600 * 12)
   end
@@ -51,7 +51,11 @@ class FetchIssues
   end
 
   def extract_labels(node)
-    node.dig('labels', 'edges').map{|label| label['node']}.map{|label| label['name']}
+    labels = node.dig('labels', 'edges').map{|label| label['node']}.map{|label| label['name']}
+    labels = labels - ['Apple Pay'] + ['Wallets'] if labels.include?('Apple Pay')
+    labels << "Payment Icons" if node['title'][/icon/i]
+    labels << "Direct Gateway" if node['title'][/cardserver|Auth\.net|Eway rapid|2checkout|union pay|bluesnap|Braintree|ipay88|SagePay|BitPay|Payeezy|Authorize\.net|PaymentProcessingJob|Stripe|Parent_id not required on all void transactions|CheckoutAbortPaymentsJob|card processing gateways|Refund not processed/i]
+    labels.uniq
   end
 
   def full_query(cursor)

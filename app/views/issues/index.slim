@@ -1,18 +1,22 @@
 table
-  th
-    td Label
-    td Count
-    td Issues
+  tr
+    th Title
+    th Avg open days
+    th Issues
 
   - @issues.sort_by{|_, issues| -issues.size}.each do |label, issues|
     tr
-      td= label
-      td= issues.size
+      td
+        = link_to label, url_for(:issues, :chart, filter: label == 'None' ? nil : label)
+        = "(#{issues.size})"
+      td
+        => (issues.sum{|x| Time.now - Time.parse(x['createdAt']) } / 3600 / 24 / issues.size).to_i
+        | days
       td
         ul
           - issues.sort_by{|issue| issue['title']}.each do |issue|
             li
-              = link_to issue['title'], issue['url']
-              span style='color:#CCC;font-size:10px;margin-left:10px;' data-date=issue['createdAt']
-
+              => link_to issue['title'], issue['url']
+              span style='color:#CCC;font-size:10px;margin-left:10px;'= issue['createdAt']
+        hr
 

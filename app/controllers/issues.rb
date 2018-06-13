@@ -5,18 +5,18 @@ GithubIssues::App.controllers :issues do
   get :index do
     issues = {}
     FetchIssues.new('Shopify/shopify', labels: ['Component: Payment Processing']).run.each do |issue|
-      labels = issue['labels'] - ['Component: Payment Processing', 'Low Priority', 'Medium Priority', 'High Priority', 'Bug', 'Support', 'Dev - Low Effort', 'bugsnag', 'Icebox', 'Plus', 'Support - Low Impact', 'Feature Request', 'Technical Debt', 'FED - Low effort', 'Quick Win']
-      labels = ['None'] if labels.empty?
+      labels = issue['labels'] - ['Component: Payment Processing', 'Bootstrap', 'Low Priority', 'Medium Priority', 'High Priority', 'Bug', 'Support', 'Dev - Low Effort', 'bugsnag', 'Icebox', 'Plus', 'Support - Low Impact', 'Technical Debt', 'FED - Low effort', 'Quick Win']
+
 
       issue['title'] = "[Low Priority] " + issue['title'] if issue['labels'].include?('Low Priority') || issue['labels'].include?('Support - Low Impact')
       issue['title'] = "[High Priority] " + issue['title'] if issue['labels'].include?('High Priority') || issue['labels'].include?('Plus')
       issue['title'] = "[Medium Priority] " + issue['title'] if issue['labels'].include?('Medium Priority')
       issue['title'] = "[Icebox] " + issue['title'] if issue['labels'].include?('Icebox')
       issue['title'] = "[Bug] " + issue['title'] if issue['labels'].include?('Bug') || issue['labels'].include?('bugsnag')
-      issue['title'] = "[Feature Request] " + issue['title'] if issue['labels'].include?('Feature Request')
+      # issue['title'] = "[Feature Request] " + issue['title'] if issue['labels'].include?('Feature Request')
       issue['title'] = "[Technical Debt] " + issue['title'] if issue['labels'].include?('Technical Debt')
 
-
+      labels = ['None'] if labels.empty?
       labels.each do |label|
         issues[label] ||= []
         issues[label] << issue.except('labels')
@@ -37,33 +37,54 @@ GithubIssues::App.controllers :issues do
     open_issues = []
     closed_issues = []
 
+    months = (Date.parse('2017-01-01')...Date.today).group_by_month{|x| x}.keys
+
     all_issues = FetchIssues.new('Shopify/shopify', labels: ['Component: Payment Processing'], state: nil).run
+    all_issues = all_issues.select{|x| x['labels'].include?(params[:filter])} if params[:filter]
 
-    all_closed_issues = all_issues.select{|x| x['state'] == 'CLOSED'}
+    issues_closed_by_month = all_issues.select{|x| x['state'] == 'CLOSED'}.group_by_month{|x| x['closedAt']}
+    issues_created_by_month = all_issues.group_by_month{|x| x['createdAt']}
 
-    all_closed_issues.group_by_month{|x| x['closedAt']}.each do |day, issues|
-      total_closed += issues.size
-      next if day < Time.parse('2017-01-01')
-      closed_issues << [day, total_closed]
+    months.each do |month|
+      total_closed += issues_closed_by_month[month]&.size || 0
+      closed_issues << [month.strftime("%b %Y"), total_closed]
+
+      total_open += issues_created_by_month[month]&.size || 0
+      open_issues << [month.strftime("%b %Y"), total_open - total_closed]
     end
 
 
-    all_issues.group_by_month{|x| x['createdAt']}.each do |day, issues|
-      total_open += issues.size
-      next if day < Time.parse('2017-01-01')
-      open_issues << [day, total_open]
+    @graph1 = [{name: 'CLOSED', data: closed_issues},{name: 'OPEN', data: open_issues}]
+
+    @graph2 = []
+
+    months.each do |month|
+      issues = issues_closed_by_month[month]
+      avg_time = (issues.sum {|issue| (Time.parse(issue['closedAt']) - Time.parse(issue['createdAt']))} / 3600 / issues.size / 24).to_i if issues && issues.size != 0
+      @graph2 << [month.strftime("%b %Y"), avg_time]
     end
 
-
-    @graph1 = [{name: 'OPEN', data: open_issues},{name: 'CLOSED', data: closed_issues}]
-
-
-    all_closed_issues.group_by_month{|x| x['closedAt']}.each do |day, issues|
-      issues.sum
+    graph3_avg = []
+    graph3_med = []
+    months.each do |month|
+      issues = all_issues.select{|x| x['state'] == 'OPEN' && Date.parse(x['createdAt']) <= month.end_of_month}
+      avg_time = (issues.sum {|issue| (month.end_of_month - Date.parse(issue['createdAt']))} / issues.size ).to_i if issues && issues.size != 0
+      graph3_avg << [month.strftime("%b %Y"), avg_time]
+      med_time = median(issues.map {|issue| (month.end_of_month - Date.parse(issue['createdAt']))}).to_i if issues && issues.size != 0
+      graph3_med << [month.strftime("%b %Y"), med_time]
     end
 
-    # @graph2 = open_issues
+    @graph3 = [{name: 'AVG', data: graph3_avg},{name: 'MEDIAN', data: graph3_med}]
+
     render 'chart'
+  end
+
+  private
+
+  define_method :median do |array|
+    sorted = array.sort
+    len = sorted.length
+    (sorted[(len - 1) / 2] + sorted[len / 2]) / 2.0
   end
 
 end

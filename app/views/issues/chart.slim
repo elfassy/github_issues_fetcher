@@ -1,3 +1,8 @@
-= line_chart @graph1, xtitle: 'Date', ytitle: '# Issues'
+h1 style="text-align: center"= params[:filter] || 'All'
 
-= line_chart @graph2, xtitle: 'Date', ytitle: 'Avg time to close'
+= area_chart @graph1, xtitle: 'Date', ytitle: '# Issues', discrete: true
+
+= line_chart @graph3, xtitle: 'Date', ytitle: 'days open', discrete: true
+
+= column_chart @graph2, xtitle: 'Date', ytitle: '# days to close', discrete: true
+
