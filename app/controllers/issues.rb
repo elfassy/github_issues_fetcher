@@ -1,4 +1,5 @@
 require_relative '../services/fetch_issues'
+require 'active_support/inflector'
 
 GithubIssues::App.controllers :issues do
 
@@ -75,6 +76,19 @@ GithubIssues::App.controllers :issues do
     end
 
     @graph3 = [{name: 'AVG', data: graph3_avg},{name: 'MEDIAN', data: graph3_med}]
+
+
+    @graph4 = []
+    months.each do |month|
+      rate = (issues_closed_by_month[month]&.size || 0) - (issues_created_by_month[month]&.size || 0)
+      @graph4 << [month.strftime("%b %Y"), rate]
+    end
+
+    @stats = {
+      avg_net_closed_per_month: (@graph4.reduce(0) {|total, month| total + month[1]} /  @graph4.size.to_f).round(2),
+      avg_open_per_month: (months.reduce(0) {|total, month| total + (issues_created_by_month[month]&.size || 0)} /  months.size.to_f).round(2),
+      avg_closed_per_month: (months.reduce(0) {|total, month| total + (issues_closed_by_month[month]&.size || 0)} /  months.size.to_f).round(2)
+    }
 
     render 'chart'
   end
